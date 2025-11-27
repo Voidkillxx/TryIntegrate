@@ -24,8 +24,10 @@ function AdminDashboard({ token }) {
     const [totalPages, setTotalPages] = useState(1);
     const productsPerPage = 10;
 
+    // Delete Logic States
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [productToDelete, setProductToDelete] = useState(null);
+    const [deletionStatus, setDeletionStatus] = useState('idle'); // Options: 'idle', 'deleting', 'success', 'error'
 
     // --- FETCH DATA ---
     useEffect(() => {
@@ -68,23 +70,44 @@ function AdminDashboard({ token }) {
 
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
-    const handleDeleteClick = (product) => { setProductToDelete(product); setShowDeleteModal(true); };
+    const handleDeleteClick = (product) => { 
+        setProductToDelete(product); 
+        setDeletionStatus('idle'); // Ensure status is clean when opening
+        setShowDeleteModal(true); 
+    };
 
     const handleConfirmDelete = async (productId) => {
+        setDeletionStatus('deleting');
         try {
             await deleteProduct(productId);
-            alert("Product Deleted!");
+            
+            // Wait a moment for UX purposes if the API is too fast, or just proceed
+            setDeletionStatus('success');
+            
+            // Refresh data immediately in background
             const prodData = await fetchProducts(currentPage);
             if (prodData.data) setProducts(prodData.data);
+
+            // Close modal after 5 seconds
+            setTimeout(() => {
+                handleCloseDeleteModal();
+            }, 5000);
+
         } catch (err) {
-            alert("Failed to delete product");
-        } finally {
-            setShowDeleteModal(false);
-            setProductToDelete(null);
+            console.error("Delete failed", err);
+            setDeletionStatus('error');
+            // Optional: Also close on error after 5s, or let user close it manually
+             setTimeout(() => {
+                handleCloseDeleteModal();
+            }, 5000);
         }
     };
 
-    const handleCloseDeleteModal = () => { setShowDeleteModal(false); setProductToDelete(null); };
+    const handleCloseDeleteModal = () => { 
+        setShowDeleteModal(false); 
+        setProductToDelete(null); 
+        setDeletionStatus('idle');
+    };
 
     const handleToggleRole = async (user) => {
         try {
@@ -190,7 +213,13 @@ function AdminDashboard({ token }) {
                 </div>
             )}
 
-            <DeleteProduct show={showDeleteModal} handleClose={handleCloseDeleteModal} product={productToDelete} handleConfirmDelete={handleConfirmDelete} />
+            <DeleteProduct 
+                show={showDeleteModal} 
+                handleClose={handleCloseDeleteModal} 
+                product={productToDelete} 
+                handleConfirmDelete={handleConfirmDelete} 
+                deletionStatus={deletionStatus} 
+            />
         </div>
     );
 }

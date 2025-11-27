@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import "../Styles/AddProduct.css";
-// Removed static categories import
+import { useNavigate } from "react-router-dom";
 
 const AddProduct = ({ onCancel, onProductAdded }) => {
+    const navigate = useNavigate();
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(false);
     
@@ -28,6 +29,14 @@ const AddProduct = ({ onCancel, onProductAdded }) => {
     const handleChange = (e) => {
         const { name, value } = e.target;
         setForm({ ...form, [name]: value });
+    };
+
+    const handleBack = () => {
+        if (onCancel) {
+            onCancel();
+        } else {
+            navigate('/admin'); // Fallback to admin dashboard
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -75,7 +84,7 @@ const AddProduct = ({ onCancel, onProductAdded }) => {
 
                 // Notify parent if needed (e.g. refresh list)
                 if (onProductAdded) onProductAdded(data);
-                if (onCancel) onCancel(); // Close modal/page if needed
+                handleBack(); // Use handleBack to close or navigate
             } else {
                 alert(data.message || "Failed to create product");
             }
@@ -90,7 +99,28 @@ const AddProduct = ({ onCancel, onProductAdded }) => {
     return (
         <div className="ap-page-background font-sans">
             <div className="ap-container">
-                <h2 className="ap-header">Add Products</h2>
+                {/* Header with Back Button */}
+                <div className="ap-header" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    <button 
+                        onClick={handleBack} 
+                        style={{ 
+                            background: 'none', 
+                            border: 'none', 
+                            cursor: 'pointer', 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            padding: 0,
+                            color: 'inherit'
+                        }}
+                        title="Go Back"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M19 12H5M12 19l-7-7 7-7"/>
+                        </svg>
+                    </button>
+                    <h2 style={{ margin: 0 }}>Add Products</h2>
+                </div>
+
                 <div className="ap-card">
                     <form id="add-product-form" className="ap-form-grid" onSubmit={handleSubmit}>
                         <div>
@@ -189,7 +219,7 @@ const AddProduct = ({ onCancel, onProductAdded }) => {
                         <button type="submit" form="add-product-form" className="ap-btn ap-btn-create" disabled={loading}>
                             {loading ? 'Creating...' : 'Create Product'}
                         </button>
-                        <button type="button" className="ap-btn ap-btn-cancel" onClick={onCancel} disabled={loading}>
+                        <button type="button" className="ap-btn ap-btn-cancel" onClick={handleBack} disabled={loading}>
                             Cancel
                         </button>
                     </div>
