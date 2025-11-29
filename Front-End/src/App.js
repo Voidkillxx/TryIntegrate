@@ -28,15 +28,7 @@ import Register from './pages/Register';
 
 let alertTimeoutId = null;
 
-// --- INTERNAL COMPONENTS (Unchanged) ---
-// ... (SearchBar, CartModal, CheckoutModal hidden for brevity as they are unchanged) ...
-const SearchBar = ({ onSearch }) => (
-  <div className="input-group shadow-sm" style={{maxWidth: '500px', margin: '0 auto'}}>
-    <span className="input-group-text bg-white border-end-0"><i className="bi bi-search"></i></span>
-    <input type="text" className="form-control border-start-0" placeholder="Search for products..." onChange={(e) => onSearch(e.target.value)} />
-  </div>
-);
-
+// --- INTERNAL COMPONENTS (Modals kept same as before) ---
 const CartModal = ({ show, onClose, cartItems, onUpdateQty, onRemove, onCheckout, loading }) => {
   if (!show) return null;
   const total = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
@@ -126,7 +118,6 @@ const CheckoutModal = ({ show, onClose, onConfirm, loading }) => {
 // --- APP CONTENT ---
 
 function AppContent() {
-  // FIX: Add refreshCart to destructuring
   const { addToCart, clearCart, setUser, refreshCart } = useContext(CartContext);
   
   const [products, setProducts] = useState([]);
@@ -142,8 +133,6 @@ function AppContent() {
     const savedUser = localStorage.getItem('user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
-
-  const userToken = currentUser ? localStorage.getItem('token') : null;
 
   const [cartItems, setCartItems] = useState([]); 
   const [cartCount, setCartCount] = useState(0);
@@ -168,10 +157,13 @@ function AppContent() {
         setCategories(catData);
 
         let url = `http://localhost:8095/api/products?page=${currentPage}`;
-        if (searchTerm) url += `&search=${searchTerm}`;
+        
+        // Ensure search term is safely encoded
+        if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`;
+        
         if (selectedCategory) {
-             const catObj = catData.find(c => c.id === parseInt(selectedCategory));
-             if(catObj) url += `&category=${catObj.slug}`;
+              const catObj = catData.find(c => c.id === parseInt(selectedCategory));
+              if(catObj) url += `&category=${catObj.slug}`;
         }
 
         const prodRes = await fetch(url);
@@ -233,22 +225,18 @@ function AppContent() {
     if (typeof setUser === 'function') setUser(user.id);
     
     fetchCart(token);
-    refreshCart(); // Force Context Update
+    refreshCart(); 
 
     showAlert(`Welcome back, ${user.first_name}!`, 'success');
     navigate(user.is_admin ? '/admin' : '/');
   };
 
   const handleLogout = () => {
-    // 1. Clear Storage
     localStorage.clear();
-    
-    // 2. Update App State
     setCurrentUser(null);
     setCartItems([]);
     setCartCount(0);
     
-    // 3. Update Context State (Reset it)
     if (typeof setUser === 'function') setUser(null);
     if (typeof refreshCart === 'function') refreshCart(); 
     
@@ -320,7 +308,7 @@ function AppContent() {
         if(res.ok) {
             showAlert('Added to cart!', 'success');
             fetchCart(token);
-            refreshCart(); // Update context too
+            refreshCart(); 
         } else {
             showAlert('Failed to add item', 'danger');
         }
@@ -412,7 +400,18 @@ function AppContent() {
 
       <Container fluid className="main-content py-3">
         <Routes>
-          <Route path="/" element={<HomePage products={products} categories={categories} onAddToCart={handleShowAddQuantityModal} loading={loadingData} />} />
+          <Route 
+            path="/" 
+            element={
+              <HomePage 
+                products={products} 
+                categories={categories} 
+                onAddToCart={handleShowAddQuantityModal} 
+                loading={loadingData}
+                searchTerm={searchTerm} // <--- CRITICAL FIX: Passing search state
+              />
+            } 
+          />
           <Route path="/product/:slug" element={<ProductDetails onAddToCart={handleShowAddQuantityModal} />} />
           <Route path="/products" element={<ProductList products={products} categories={categories} selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} onAddToCart={handleShowAddQuantityModal} currentPage={currentPage} lastPage={lastPage} setCurrentPage={setCurrentPage} loading={loadingData} />} />
           <Route path="/product/:productId" element={<ProductDetails products={products} onAddToCart={handleShowAddQuantityModal} />} />

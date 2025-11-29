@@ -13,8 +13,8 @@ class Order extends Model
 
     protected $fillable = [
         'user_id',
-        'subtotal',       // Added
-        'shipping_fee',   // Added
+        'subtotal',      
+        'shipping_fee',  
         'total_amount',
         'payment_type',
         'status',
