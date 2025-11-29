@@ -14,8 +14,8 @@ const Cart = ({ showAlert }) => {
     toggleSelectAll,
     clearCart,
     removeFromCart,
-    refreshCart, // Import refresh function
-    loading // Import loading state
+    refreshCart, 
+    loading
   } = useContext(CartContext);
   
   const navigate = useNavigate();
@@ -24,12 +24,13 @@ const Cart = ({ showAlert }) => {
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [itemToRemove, setItemToRemove] = useState(null);
 
-  // Load latest cart data when page opens
   useEffect(() => {
     refreshCart();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const isAllSelected = cartItems.length > 0 && selectedItems.length === cartItems.length;
+  // Strict check for "Select All"
+  const isAllSelected = cartItems.length > 0 && cartItems.every(item => selectedItems.includes(item.id));
 
   // --- Modal Handlers ---
   const handleShowClearModal = () => setShowClearModal(true);
@@ -103,7 +104,7 @@ const Cart = ({ showAlert }) => {
                 <CartItem 
                     key={item.id} 
                     item={item} 
-                    onRemove={() => handleShowRemoveModal(item)} // Pass handler to child
+                    onRemove={() => handleShowRemoveModal(item)} 
                 />
               ))}
 

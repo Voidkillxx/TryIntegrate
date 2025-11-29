@@ -9,9 +9,18 @@ class OrderFactory extends Factory
 {
     public function definition(): array
     {
+        $subtotal = fake()->randomFloat(2, 100, 5000);
+        
+        $shippingFee = 50.00;
+
         return [
             'user_id' => User::factory(),
-            'total_amount' => fake()->randomFloat(2, 10, 300), 
+            
+          
+            'subtotal' => $subtotal,
+            'shipping_fee' => $shippingFee,
+            'total_amount' => $subtotal + $shippingFee, 
+            
             'status' => fake()->randomElement(['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled']),
             'payment_type' => fake()->randomElement(['Card', 'Cash On Delivery']),
             'shipping_address' => fake()->address(),

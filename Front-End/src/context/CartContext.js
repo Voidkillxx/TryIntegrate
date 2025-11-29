@@ -6,16 +6,36 @@ export const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
-  const [selectedItems, setSelectedItems] = useState([]);
+  
+  // FIX: Initialize from sessionStorage so selection survives page refreshes/navigation
+  const [selectedItems, setSelectedItems] = useState(() => {
+    try {
+        const saved = sessionStorage.getItem('cart_selected_items');
+        return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+        return [];
+    }
+  });
+
   const [cartCount, setCartCount] = useState(0);
-  const [loading, setLoading] = useState(false);
+  // FIX: Start loading as true to prevent "No Items" flash before data loads
+  const [loading, setLoading] = useState(true); 
+
+  // FIX: Save to sessionStorage whenever selection changes
+  useEffect(() => {
+    sessionStorage.setItem('cart_selected_items', JSON.stringify(selectedItems));
+  }, [selectedItems]);
 
   // 1. LOAD CART FROM DATABASE
   const refreshCart = async () => {
+    // Only set loading if we don't have items yet (prevents UI flicker)
+    if(cartItems.length === 0) setLoading(true); 
+    
     const token = localStorage.getItem('token');
     if (!token) {
         setCartItems([]);
         setCartCount(0);
+        setLoading(false);
         return;
     }
     
@@ -23,13 +43,13 @@ export const CartProvider = ({ children }) => {
       const data = await fetchCart();
       if (data.cart_items) {
         setCartItems(data.cart_items);
-        
-        // Calculate total quantity for badge
         const count = data.cart_items.reduce((acc, item) => acc + item.quantity, 0);
         setCartCount(count);
       }
     } catch (error) {
       console.error("Failed to sync cart", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -59,26 +79,21 @@ export const CartProvider = ({ children }) => {
   const selectedSubtotal = cartItems
     .filter(item => selectedItems.includes(item.id))
     .reduce((total, item) => {
-      const price = item.product ? item.product.price : 0; 
+      if (!item.product) return total;
       const validQuantity = parseInt(item.quantity) || 0;
-      return total + (validQuantity * price);
+      const finalPrice = calculateSellingPrice(item.product.price, item.product.discount);
+      return total + (validQuantity * finalPrice);
     }, 0);
 
   // 4. API ACTIONS
-
   const addToCart = async (productToAdd, quantity = 1) => {
     setLoading(true);
     try {
-        // FIX: Pass ID directly if object, or pass ID if already ID
         const productId = productToAdd.id ? productToAdd.id : productToAdd;
-        
-        // API requires Product ID
         await apiAdd(productId, quantity);
         await refreshCart(); 
-        // Success is handled by UI component usually, but we can return true here
         return true;
     } catch (error) {
-        // Re-throw so UI handles the alert
         throw error;
     } finally {
         setLoading(false);
@@ -132,10 +147,7 @@ export const CartProvider = ({ children }) => {
     await refreshCart();
   };
 
-  // Placeholder for setUser to avoid errors if App.js calls it
-  const setUser = (userId) => {
-      // You can add logic here if you need to track user ID in context
-  };
+  const setUser = (userId) => { };
 
   return (
     <CartContext.Provider
@@ -143,6 +155,7 @@ export const CartProvider = ({ children }) => {
         cartItems,
         cartCount,
         selectedItems,
+        setSelectedItems,
         selectedSubtotal,
         loading,
         toggleSelectItem,

@@ -115,7 +115,7 @@ class ProductFactory extends Factory
                 'stock' => $item['stock'],
                 'is_active' => true,
                 'description' => $item['description'],
-                'category_id' => $item['categoryId'], // Ensure these IDs exist in your DB!
+                'category_id' => $item['categoryId'], 
                 'image_url' => $item['imageUrl'],
             ];
         });

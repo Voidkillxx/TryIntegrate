@@ -6,14 +6,13 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Cart;
 use App\Models\CartItem;
-use App\Models\Product; // Import Product
+use App\Models\Product; 
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
-    // --- POST: CHECKOUT ---
     public function checkout(Request $request)
     {
         $user = $request->user();
@@ -21,7 +20,9 @@ class OrderController extends Controller
 
         $request->validate([
             'shipping_address' => 'required|string',
-            'payment_type'     => 'required|in:Card,Cash On Delivery'
+            'payment_type'     => 'required|in:Card,Cash On Delivery',
+            'selected_items'   => 'required|array', // NEW: Require list of selected cart item IDs
+            'selected_items.*' => 'integer'
         ]);
 
         $cart = Cart::where('user_id', $user->id)->with('cartItems.product')->first();
@@ -30,8 +31,14 @@ class OrderController extends Controller
             return response()->json(['message' => 'Cart is empty'], 400);
         }
 
-        // 1. Check Stock Availability First
-        foreach ($cart->cartItems as $item) {
+        $selectedItemIds = $request->selected_items;
+        $checkoutItems = $cart->cartItems->whereIn('id', $selectedItemIds);
+
+        if ($checkoutItems->isEmpty()) {
+            return response()->json(['message' => 'No valid items selected for checkout'], 400);
+        }
+
+        foreach ($checkoutItems as $item) {
             if (!$item->product) continue;
             if ($item->product->stock < $item->quantity) {
                 return response()->json([
@@ -40,41 +47,57 @@ class OrderController extends Controller
             }
         }
 
-        $totalAmount = 0;
-        foreach ($cart->cartItems as $item) {
+       
+        $subtotal = 0;
+        foreach ($checkoutItems as $item) {
             if ($item->product) {
-                $totalAmount += $item->product->price * $item->quantity;
+                $price = $item->product->price;
+                
+                if (isset($item->product->discount) && $item->product->discount > 0) {
+                    $discountedPrice = $price * (1 - ($item->product->discount / 100));
+                    $price = $discountedPrice;
+                }
+
+                $subtotal += $price * $item->quantity;
             }
         }
 
-        return DB::transaction(function () use ($user, $cart, $totalAmount, $request) {
+        $shippingFee = 50; 
+        $grandTotal = $subtotal + $shippingFee;
+
+        return DB::transaction(function () use ($user, $cart, $checkoutItems, $selectedItemIds, $subtotal, $shippingFee, $grandTotal, $request) {
             
-            // 2. Create Order
             $order = Order::create([
                 'user_id'          => $user->id,
-                'total_amount'     => $totalAmount,
+                'subtotal'         => $subtotal,      
+                'shipping_fee'     => $shippingFee,  
+                'total_amount'     => $grandTotal,   
                 'status'           => 'Pending',
                 'payment_type'     => $request->payment_type,
                 'shipping_address' => $request->shipping_address
             ]);
 
-            foreach ($cart->cartItems as $item) {
+            foreach ($checkoutItems as $item) {
                 if ($item->product) {
-                    // 3. Create Order Item
+                    
+                    $finalItemPrice = $item->product->price;
+                    if (isset($item->product->discount) && $item->product->discount > 0) {
+                        $finalItemPrice = $item->product->price * (1 - ($item->product->discount / 100));
+                    }
+
                     OrderItem::create([
                         'order_id'          => $order->id,
                         'product_id'        => $item->product_id,
                         'quantity'          => $item->quantity,
-                        'price_at_purchase' => $item->product->price
+                        'price_at_purchase' => $finalItemPrice
                     ]);
 
-                    // 4. DECREMENT STOCK HERE
+                    
                     $item->product->decrement('stock', $item->quantity);
                 }
             }
 
-            // 5. Clear Cart
-            CartItem::where('cart_id', $cart->id)->delete();
+            CartItem::whereIn('id', $selectedItemIds)->delete();
 
             return response()->json([
                 'message'  => 'Order placed successfully!',
@@ -83,7 +106,6 @@ class OrderController extends Controller
         });
     }
 
-    // ... (Rest of your controller methods remain unchanged) ...
 
     public function index(Request $request)
     {
@@ -127,10 +149,10 @@ class OrderController extends Controller
             return response()->json(['message' => 'Order cannot be cancelled now.'], 400);
         }
 
-        // OPTIONAL: RESTOCK ITEMS ON CANCEL
-        // foreach($order->orderItems as $item) {
-        //    $item->product->increment('stock', $item->quantity);
-        // }
+   
+        foreach($order->orderItems as $item) {
+           $item->product->increment('stock', $item->quantity);
+        }
 
         $order->update(['status' => 'Cancelled']);
         return response()->json(['message' => 'Order cancelled successfully']);
@@ -146,7 +168,6 @@ class OrderController extends Controller
         if (!$order) return response()->json(['message' => 'Order not found'], 404);
 
         $request->validate(['status' => 'required|in:Pending,Processing,Shipped,Delivered,Cancelled']);
-        
         
         if ($request->status === 'Cancelled' && $order->status !== 'Cancelled') {
            foreach($order->orderItems as $item) {

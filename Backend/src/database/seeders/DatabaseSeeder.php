@@ -12,7 +12,7 @@ use App\Models\OrderItem;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash; // <--- Added this import
+use Illuminate\Support\Facades\Hash; 
 
 class DatabaseSeeder extends Seeder
 {
@@ -44,12 +44,12 @@ class DatabaseSeeder extends Seeder
         $categories = Category::factory(4)->create();
 
         // Create Products using the existing categories
-        $products = Product::factory(10)
+        $products = Product::factory(9)
             ->recycle($categories) 
             ->create();
 
         // Create Users and link related data to them
-        User::factory(10)
+        User::factory(5)
             ->create()
             ->each(function ($user) use ($products) {
                 
@@ -74,7 +74,7 @@ class DatabaseSeeder extends Seeder
                 ])->each(function ($order) use ($products) {
                     
                     // Pick 1-10 UNIQUE products for this specific order
-                    $orderProducts = $products->random(rand(1, 10));
+                    $orderProducts = $products->random(rand(1, 9));
                     $totalAmount = 0; // Added variable to track total
 
                     foreach ($orderProducts as $product) {

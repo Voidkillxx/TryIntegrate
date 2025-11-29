@@ -14,9 +14,13 @@ return new class extends Migration
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
-            $table->decimal('total_amount',10,2);
-            $table->enum('status',['Pending','Processing','Cancelled','Shipped','Delivered'])->default('Pending');
-            $table->enum('payment_type',['Card','Cash On Delivery']);
+            
+            $table->decimal('subtotal', 10, 2); 
+            $table->decimal('shipping_fee', 10, 2)->default(50.00); 
+            $table->decimal('total_amount', 10, 2); 
+            
+            $table->enum('status', ['Pending', 'Processing', 'Cancelled', 'Shipped', 'Delivered'])->default('Pending');
+            $table->enum('payment_type', ['Card', 'Cash On Delivery']);
             $table->text('shipping_address');
             $table->timestamps();
         });

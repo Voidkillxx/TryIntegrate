@@ -10,22 +10,24 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Order extends Model
 {
     use HasFactory;
+
     protected $fillable = [
         'user_id',
+        'subtotal',       // Added
+        'shipping_fee',   // Added
         'total_amount',
         'payment_type',
         'status',
         'shipping_address'
     ];
 
-    public function user(): BelongsTo{
+    public function user(): BelongsTo
+    {
         return $this->belongsTo(User::class);
     }
 
-
-    public function OrderItems(): HasMany
+    public function orderItems(): HasMany
     {
         return $this->hasMany(OrderItem::class);
     }
-    
 }
